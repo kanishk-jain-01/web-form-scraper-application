@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
-import { io, Socket } from 'socket.io-client'
+import { useEffect, useRef, useState, useCallback } from 'react'
 
 interface UseWebSocketProps {
   clientId: string
@@ -10,30 +9,52 @@ interface UseWebSocketProps {
 
 export const useWebSocket = ({ clientId, onMessage, onConnect, onDisconnect }: UseWebSocketProps) => {
   const [isConnected, setIsConnected] = useState(false)
-  const [socket, setSocket] = useState<Socket | null>(null)
-  const socketRef = useRef<Socket | null>(null)
+  const socketRef = useRef<WebSocket | null>(null)
+  const onMessageRef = useRef(onMessage)
+  const onConnectRef = useRef(onConnect)
+  const onDisconnectRef = useRef(onDisconnect)
+
+  // Update refs when callbacks change
+  useEffect(() => {
+    onMessageRef.current = onMessage
+  }, [onMessage])
+
+  useEffect(() => {
+    onConnectRef.current = onConnect
+  }, [onConnect])
+
+  useEffect(() => {
+    onDisconnectRef.current = onDisconnect
+  }, [onDisconnect])
 
   useEffect(() => {
     // Create WebSocket connection
     const ws = new WebSocket(`ws://localhost:8000/ws/${clientId}`)
     
     ws.onopen = () => {
+      console.log(`WebSocket connected for client ${clientId}`)
       setIsConnected(true)
-      onConnect?.()
+      onConnectRef.current?.()
     }
 
     ws.onmessage = (event) => {
       try {
+        // Skip echo messages from backend
+        if (event.data.startsWith('Echo:')) {
+          return
+        }
+        
         const data = JSON.parse(event.data)
-        onMessage?.(data)
+        onMessageRef.current?.(data)
       } catch (error) {
-        console.error('Error parsing WebSocket message:', error)
+        console.error('Error parsing WebSocket message:', error, 'Raw message:', event.data)
       }
     }
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
+      console.log(`WebSocket disconnected for client ${clientId}`, event.code, event.reason)
       setIsConnected(false)
-      onDisconnect?.()
+      onDisconnectRef.current?.()
     }
 
     ws.onerror = (error) => {
@@ -43,9 +64,11 @@ export const useWebSocket = ({ clientId, onMessage, onConnect, onDisconnect }: U
     socketRef.current = ws
 
     return () => {
-      ws.close()
+      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+        ws.close()
+      }
     }
-  }, [clientId, onMessage, onConnect, onDisconnect])
+  }, [clientId])
 
   const sendMessage = (message: string) => {
     if (socketRef.current && isConnected) {

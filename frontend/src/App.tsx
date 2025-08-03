@@ -7,6 +7,7 @@ import { AgentActivity } from './components/AgentActivity'
 function App() {
   const {
     clientId,
+    jobId,
     isActive,
     setActive,
     setJobId,
@@ -113,8 +114,16 @@ function App() {
   }
 
   const handleStopScraping = async () => {
+    if (!jobId) {
+      addMessage({
+        type: 'error',
+        message: 'No active job to stop'
+      })
+      return
+    }
+
     try {
-      const response = await fetch(`/api/v1/scraping/stop/${clientId}`, {
+      const response = await fetch(`/api/v1/scraping/stop/${jobId}`, {
         method: 'POST'
       })
 

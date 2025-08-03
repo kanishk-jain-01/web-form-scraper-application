@@ -74,10 +74,34 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
             # Listen for incoming messages
             data = await websocket.receive_text()
             
-            # Echo back the message (can be extended for more functionality)
-            await websocket_manager.send_personal_message(f"Echo: {data}", client_id)
+            try:
+                # Parse incoming message
+                message = json.loads(data)
+                logger.info(f"Received WebSocket message from {client_id}: {message}")
+                
+                # Handle different message types
+                message_type = message.get('type')
+                
+                if message_type == 'ping':
+                    # Respond to ping with pong
+                    await websocket_manager.send_json_message({
+                        'type': 'pong',
+                        'message': 'Connection alive'
+                    }, client_id)
+                
+                elif message_type == 'human_input':
+                    # Handle human input for HITL workflow
+                    logger.info(f"Human input received for client {client_id}: {message.get('input')}")
+                    # This would be processed by the job queue/agent system
+                    
+                else:
+                    logger.warning(f"Unknown message type from {client_id}: {message_type}")
+                    
+            except json.JSONDecodeError:
+                logger.warning(f"Invalid JSON received from {client_id}: {data}")
             
     except WebSocketDisconnect:
+        logger.info(f"WebSocket client {client_id} disconnected normally")
         websocket_manager.disconnect(client_id)
     except Exception as e:
         logger.error(f"WebSocket error for client {client_id}: {e}")
