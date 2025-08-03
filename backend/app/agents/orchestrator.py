@@ -8,7 +8,6 @@ from langgraph.prebuilt import create_react_agent
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import HumanMessage, AIMessage
 from .tools import WebScrapingTools
-from ..browser.browserbase import browserbase_service
 from ..browser.stagehand import StagehandService
 
 from ..config import settings
@@ -56,17 +55,16 @@ class ScrapingOrchestrator:
     async def _initialize_browser_session(self) -> bool:
         """Initialize browser session and services"""
         try:
-            # Create Browserbase session
-            logger.info("Creating new Browserbase session...")
-            self.session_id = await browserbase_service.create_session()
-            if not self.session_id:
-                logger.error("Failed to create browser session")
+            # Initialize browser services with Stagehand
+            logger.info("Initializing Stagehand browser session...")
+            self.stagehand = StagehandService()
+            
+            if not self.stagehand.is_ready():
+                logger.error("Failed to initialize Stagehand service")
                 return False
             
+            self.session_id = self.stagehand.session_id
             logger.info(f"Browser session created successfully: {self.session_id}")
-            
-            # Initialize browser services
-            self.stagehand = StagehandService(self.session_id)
             
             # Send session info
             await websocket_manager.send_json_message({
@@ -261,18 +259,20 @@ Begin by navigating to the website and analyzing its structure."""
     async def _cleanup(self):
         """Cleanup browser session and resources"""
         try:
-            if self.session_id:
+            if self.stagehand and self.session_id:
                 logger.info(f"Attempting to close browser session: {self.session_id}")
-                success = await browserbase_service.close_session(self.session_id)
+                success = await self.stagehand.close()
                 if success:
                     logger.info(f"Browser session {self.session_id} closed successfully")
                 else:
                     logger.warning(f"Failed to close browser session {self.session_id}")
                 # Reset session ID after cleanup
                 self.session_id = None
+                self.stagehand = None
             else:
-                logger.warning("No session ID available for cleanup")
+                logger.warning("No Stagehand service or session ID available for cleanup")
         except Exception as e:
             logger.error(f"Error during cleanup: {e}")
             # Reset session ID even on error
             self.session_id = None
+            self.stagehand = None

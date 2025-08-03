@@ -83,7 +83,7 @@ class AnalyzePageTool(BaseTool):
             observation = await self.stagehand.observe_page(instruction)
             
             # Extract form fields
-            form_data = await self.stagehand.extract_data()
+            form_data = await self.stagehand.extract_data("Extract all form fields and interactive elements from the current page")
             
             result = {
                 "observation": observation,
