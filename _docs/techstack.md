@@ -6,6 +6,7 @@
 - ShadCn: Component library built on Tailwind for reusable UI elements.
 - Socket.io: Library for real-time WebSocket communication (e.g., agent progress updates and HITL prompts).
 - Material-UI (optional): For additional UI components if ShadCn needs supplementation.
+- Zustand: A minimalistic state management library for React, ideal for handling global app state like scrape job status and real-time updates without the boilerplate of Redux.
 
 # Backend
 ## API Layer
