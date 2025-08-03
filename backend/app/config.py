@@ -4,23 +4,21 @@ from typing import Optional
 
 class Settings(BaseSettings):
     # Database
-    database_url: str = "postgresql://user:password@localhost:5432/web_scraper_db"
+    database_url: str
     
     # Redis
     redis_url: str = "redis://localhost:6379"
     
-    # OpenAI
+    # AI API Keys
     openai_api_key: Optional[str] = None
-    
-    # Anthropic
     anthropic_api_key: Optional[str] = None
     
-    # Browserbase
+    # Browser automation
     browserbase_api_key: Optional[str] = None
     browserbase_project_id: Optional[str] = None
     
-    # JWT
-    jwt_secret_key: str = "your_secret_key_here"
+    # JWT Security
+    jwt_secret_key: str
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 30
     
@@ -29,8 +27,7 @@ class Settings(BaseSettings):
     api_port: int = 8000
     api_debug: bool = True
 
-    class Config:
-        env_file = ".env"
+    model_config = {"env_file": ".env"}
 
 
 settings = Settings()
