@@ -17,7 +17,7 @@ class StagehandService:
         """Initialize Stagehand instance"""
         try:
             self.stagehand = Stagehand(
-                env="browserbase",
+                env="BROWSERBASE",
                 api_key=browserbase_service.api_key,
                 project_id=browserbase_service.project_id,
                 session_id=self.session_id

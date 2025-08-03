@@ -93,7 +93,7 @@ class ScrapingOrchestrator:
                 human_input_callback=human_input_callback
             )
             
-            # Get all tools
+            # Get all tools - properly invoke to get tool list
             tools = self.tools.get_all_tools()
             
             # Create ReAct agent with checkpointer for state management
@@ -209,11 +209,12 @@ Begin by navigating to the website and analyzing its structure."""
                 config
             )
             
-            # Send completion message
+            # Send completion message with serializable data
+            serializable_result = self._make_serializable(response)
             await websocket_manager.send_json_message({
                 "type": "job_completed",
                 "message": "Scraping job completed successfully",
-                "final_result": response
+                "final_result": serializable_result
             }, self.client_id)
             
             return response
@@ -226,6 +227,31 @@ Begin by navigating to the website and analyzing its structure."""
                 "message": error_msg
             }, self.client_id)
             return {"error": error_msg}
+
+    def _make_serializable(self, obj):
+        """Convert LangChain objects to JSON-serializable format"""
+        if hasattr(obj, 'dict'):
+            # Pydantic model
+            return obj.dict()
+        elif hasattr(obj, 'content'):
+            # LangChain message
+            return {
+                "type": obj.__class__.__name__,
+                "content": obj.content
+            }
+        elif isinstance(obj, dict):
+            return {k: self._make_serializable(v) for k, v in obj.items()}
+        elif isinstance(obj, (list, tuple)):
+            return [self._make_serializable(item) for item in obj]
+        else:
+            try:
+                # Try to serialize as-is
+                import json
+                json.dumps(obj)
+                return obj
+            except (TypeError, ValueError):
+                # Fallback to string representation
+                return str(obj)
 
     async def _cleanup(self):
         """Cleanup browser session and resources"""

@@ -1,7 +1,8 @@
 import asyncio
 import logging
-from typing import Dict, Any, Optional, Callable
-from langchain.tools import tool
+from typing import Dict, Any, Optional, Callable, Type
+from langchain_core.tools import BaseTool
+from pydantic import BaseModel, Field
 from ..browser.stagehand import StagehandService
 
 from ..api.websockets import websocket_manager
@@ -9,41 +10,24 @@ from ..api.websockets import websocket_manager
 logger = logging.getLogger(__name__)
 
 
-class WebScrapingTools:
-    def __init__(
-    self,
-    stagehand: StagehandService,
-    client_id: str,
-    job_id: str,
-    human_input_callback: Optional[Callable] = None
-    ):
-        self.stagehand = stagehand
-        self.client_id = client_id
-        self.job_id = job_id
-        self.human_input_callback = human_input_callback
+class NavigateInput(BaseModel):
+    url: str = Field(description="The URL to navigate to")
 
-    async def send_progress_update(self, message: str, data: Optional[Dict] = None):
-        """Send progress update to frontend via WebSocket"""
-        try:
-            await websocket_manager.send_json_message({
-                "type": "agent_progress",
-                "message": message,
-                "job_id": self.job_id,
-                "data": data or {}
-            }, self.client_id)
-        except Exception as e:
-            logger.error(f"Failed to send progress update: {e}")
 
-    @tool
-    async def navigate_to_website(self, url: str) -> str:
-        """Navigate to a website URL.
-        
-        Args:
-            url: The URL to navigate to
-            
-        Returns:
-            Success message or error details
-        """
+class NavigateTool(BaseTool):
+    name: str = "navigate_to_website"
+    description: str = "Navigate to a website URL"
+    args_schema: Type[BaseModel] = NavigateInput
+    
+    stagehand: StagehandService = Field(exclude=True)
+    client_id: str = Field(exclude=True)
+    job_id: str = Field(exclude=True)
+    
+    def _run(self, url: str) -> str:
+        """Sync wrapper for async method"""
+        return asyncio.run(self._arun(url))
+    
+    async def _arun(self, url: str) -> str:
         try:
             await self.send_progress_update(f"Navigating to {url}")
             
@@ -61,17 +45,37 @@ class WebScrapingTools:
             error_msg = f"Error navigating to {url}: {str(e)}"
             await self.send_progress_update(error_msg)
             return error_msg
+    
+    async def send_progress_update(self, message: str, data: Optional[Dict] = None):
+        try:
+            await websocket_manager.send_json_message({
+                "type": "agent_progress",
+                "message": message,
+                "job_id": self.job_id,
+                "data": data or {}
+            }, self.client_id)
+        except Exception as e:
+            logger.error(f"Failed to send progress update: {e}")
 
-    @tool
-    async def analyze_page_content(self, instruction: str = "Analyze the current page for forms and interactive elements") -> Dict[str, Any]:
-        """Analyze the current page content to understand forms and structure.
-        
-        Args:
-            instruction: Specific instruction for page analysis
-            
-        Returns:
-            Page analysis results including forms, fields, and structure
-        """
+
+class AnalyzePageInput(BaseModel):
+    instruction: str = Field(default="Analyze the current page for forms and interactive elements", description="Specific instruction for page analysis")
+
+
+class AnalyzePageTool(BaseTool):
+    name: str = "analyze_page_content"
+    description: str = "Analyze the current page content to understand forms and structure"
+    args_schema: Type[BaseModel] = AnalyzePageInput
+    
+    stagehand: StagehandService = Field(exclude=True)
+    client_id: str = Field(exclude=True)
+    job_id: str = Field(exclude=True)
+    
+    def _run(self, instruction: str = "Analyze the current page for forms and interactive elements") -> Dict[str, Any]:
+        """Sync wrapper for async method"""
+        return asyncio.run(self._arun(instruction))
+    
+    async def _arun(self, instruction: str = "Analyze the current page for forms and interactive elements") -> Dict[str, Any]:
         try:
             await self.send_progress_update("Analyzing page content...")
             
@@ -94,17 +98,37 @@ class WebScrapingTools:
             error_msg = f"Error analyzing page: {str(e)}"
             await self.send_progress_update(error_msg)
             return {"error": error_msg, "page_analyzed": False}
+    
+    async def send_progress_update(self, message: str, data: Optional[Dict] = None):
+        try:
+            await websocket_manager.send_json_message({
+                "type": "agent_progress",
+                "message": message,
+                "job_id": self.job_id,
+                "data": data or {}
+            }, self.client_id)
+        except Exception as e:
+            logger.error(f"Failed to send progress update: {e}")
 
-    @tool
-    async def fill_form_fields(self, field_data: Dict[str, str]) -> Dict[str, Any]:
-        """Fill form fields with provided data.
-        
-        Args:
-            field_data: Dictionary mapping field selectors to values
-            
-        Returns:
-            Results of filling each field
-        """
+
+class FillFormInput(BaseModel):
+    field_data: Dict[str, str] = Field(description="Dictionary mapping field selectors to values")
+
+
+class FillFormTool(BaseTool):
+    name: str = "fill_form_fields"
+    description: str = "Fill form fields with provided data"
+    args_schema: Type[BaseModel] = FillFormInput
+    
+    stagehand: StagehandService = Field(exclude=True)
+    client_id: str = Field(exclude=True)
+    job_id: str = Field(exclude=True)
+    
+    def _run(self, field_data: Dict[str, str]) -> Dict[str, Any]:
+        """Sync wrapper for async method"""
+        return asyncio.run(self._arun(field_data))
+    
+    async def _arun(self, field_data: Dict[str, str]) -> Dict[str, Any]:
         try:
             await self.send_progress_update("Filling form fields...")
             
@@ -141,18 +165,38 @@ class WebScrapingTools:
             error_msg = f"Error filling form fields: {str(e)}"
             await self.send_progress_update(error_msg)
             return {"error": error_msg}
+    
+    async def send_progress_update(self, message: str, data: Optional[Dict] = None):
+        try:
+            await websocket_manager.send_json_message({
+                "type": "agent_progress",
+                "message": message,
+                "job_id": self.job_id,
+                "data": data or {}
+            }, self.client_id)
+        except Exception as e:
+            logger.error(f"Failed to send progress update: {e}")
 
-    @tool
-    async def click_element(self, selector: str, description: str = "") -> str:
-        """Click an element on the page.
-        
-        Args:
-            selector: CSS selector or description of element to click
-            description: Human-readable description of what we're clicking
-            
-        Returns:
-            Success message or error details
-        """
+
+class ClickElementInput(BaseModel):
+    selector: str = Field(description="CSS selector or description of element to click")
+    description: str = Field(default="", description="Human-readable description of what we're clicking")
+
+
+class ClickElementTool(BaseTool):
+    name: str = "click_element"
+    description: str = "Click an element on the page"
+    args_schema: Type[BaseModel] = ClickElementInput
+    
+    stagehand: StagehandService = Field(exclude=True)
+    client_id: str = Field(exclude=True)
+    job_id: str = Field(exclude=True)
+    
+    def _run(self, selector: str, description: str = "") -> str:
+        """Sync wrapper for async method"""
+        return asyncio.run(self._arun(selector, description))
+    
+    async def _arun(self, selector: str, description: str = "") -> str:
         try:
             action_desc = description or f"element {selector}"
             await self.send_progress_update(f"Clicking {action_desc}")
@@ -171,18 +215,39 @@ class WebScrapingTools:
             error_msg = f"Error clicking {selector}: {str(e)}"
             await self.send_progress_update(error_msg)
             return error_msg
+    
+    async def send_progress_update(self, message: str, data: Optional[Dict] = None):
+        try:
+            await websocket_manager.send_json_message({
+                "type": "agent_progress",
+                "message": message,
+                "job_id": self.job_id,
+                "data": data or {}
+            }, self.client_id)
+        except Exception as e:
+            logger.error(f"Failed to send progress update: {e}")
 
-    @tool
-    async def request_human_input(self, prompt: str, input_type: str = "text") -> str:
-        """Request human input for CAPTCHA, verification, or other manual steps.
-        
-        Args:
-            prompt: Message to display to the human
-            input_type: Type of input needed (text, confirmation, etc.)
-            
-        Returns:
-            The human's response
-        """
+
+class HumanInputInput(BaseModel):
+    prompt: str = Field(description="Message to display to the human")
+    input_type: str = Field(default="text", description="Type of input needed (text, confirmation, etc.)")
+
+
+class HumanInputTool(BaseTool):
+    name: str = "request_human_input"
+    description: str = "Request human input for CAPTCHA, verification, or other manual steps"
+    args_schema: Type[BaseModel] = HumanInputInput
+    
+    stagehand: StagehandService = Field(exclude=True)
+    client_id: str = Field(exclude=True)
+    job_id: str = Field(exclude=True)
+    human_input_callback: Optional[Callable] = Field(exclude=True)
+    
+    def _run(self, prompt: str, input_type: str = "text") -> str:
+        """Sync wrapper for async method"""
+        return asyncio.run(self._arun(prompt, input_type))
+    
+    async def _arun(self, prompt: str, input_type: str = "text") -> str:
         try:
             await self.send_progress_update("Human input required", {
                 "requires_human_input": True,
@@ -203,17 +268,120 @@ class WebScrapingTools:
             error_msg = f"Error requesting human input: {str(e)}"
             await self.send_progress_update(error_msg)
             return error_msg
+    
+    async def send_progress_update(self, message: str, data: Optional[Dict] = None):
+        try:
+            await websocket_manager.send_json_message({
+                "type": "agent_progress",
+                "message": message,
+                "job_id": self.job_id,
+                "data": data or {}
+            }, self.client_id)
+        except Exception as e:
+            logger.error(f"Failed to send progress update: {e}")
 
-    @tool
 
+class ComplexTaskInput(BaseModel):
+    task_description: str = Field(description="Natural language description of the task to perform")
+
+
+class ComplexTaskTool(BaseTool):
+    name: str = "run_complex_task"
+    description: str = "Run a complex multi-step task using Stagehand's act method"
+    args_schema: Type[BaseModel] = ComplexTaskInput
+    
+    stagehand: StagehandService = Field(exclude=True)
+    client_id: str = Field(exclude=True)
+    job_id: str = Field(exclude=True)
+    
+    def _run(self, task_description: str) -> Dict[str, Any]:
+        """Sync wrapper for async method"""
+        return asyncio.run(self._arun(task_description))
+    
+    async def _arun(self, task_description: str) -> Dict[str, Any]:
+        try:
+            await self.send_progress_update(f"Running complex task: {task_description}")
+            
+            success = await self.stagehand.perform_action(task_description)
+            if success:
+                result = {
+                    "success": True,
+                    "task": task_description,
+                    "message": "Task completed successfully"
+                }
+                await self.send_progress_update("Complex task completed")
+                return result
+            else:
+                result = {
+                    "success": False,
+                    "task": task_description,
+                    "error": "Task execution failed"
+                }
+                await self.send_progress_update("Complex task failed")
+                return result
+                
+        except Exception as e:
+            error_msg = f"Error running complex task: {str(e)}"
+            await self.send_progress_update(error_msg)
+            return {"success": False, "error": error_msg}
+    
+    async def send_progress_update(self, message: str, data: Optional[Dict] = None):
+        try:
+            await websocket_manager.send_json_message({
+                "type": "agent_progress",
+                "message": message,
+                "job_id": self.job_id,
+                "data": data or {}
+            }, self.client_id)
+        except Exception as e:
+            logger.error(f"Failed to send progress update: {e}")
+
+
+class WebScrapingTools:
+    def __init__(
+        self,
+        stagehand: StagehandService,
+        client_id: str,
+        job_id: str,
+        human_input_callback: Optional[Callable] = None
+    ):
+        self.stagehand = stagehand
+        self.client_id = client_id
+        self.job_id = job_id
+        self.human_input_callback = human_input_callback
 
     def get_all_tools(self):
         """Get all available tools for the agent"""
         return [
-            self.navigate_to_website,
-            self.analyze_page_content,
-            self.fill_form_fields,
-            self.click_element,
-            self.request_human_input,
-            self.run_complex_task
+            NavigateTool(
+                stagehand=self.stagehand,
+                client_id=self.client_id,
+                job_id=self.job_id
+            ),
+            AnalyzePageTool(
+                stagehand=self.stagehand,
+                client_id=self.client_id,
+                job_id=self.job_id
+            ),
+            FillFormTool(
+                stagehand=self.stagehand,
+                client_id=self.client_id,
+                job_id=self.job_id
+            ),
+            ClickElementTool(
+                stagehand=self.stagehand,
+                client_id=self.client_id,
+                job_id=self.job_id
+            ),
+            HumanInputTool(
+                stagehand=self.stagehand,
+                client_id=self.client_id,
+                job_id=self.job_id,
+                human_input_callback=self.human_input_callback
+            ),
+            ComplexTaskTool(
+                stagehand=self.stagehand,
+                client_id=self.client_id,
+                job_id=self.job_id
+            )
         ]
