@@ -99,7 +99,7 @@ class ScrapingOrchestrator:
                 model=self.llm,
                 tools=tools,
                 checkpointer=self.checkpointer,
-                interrupt_before=["tools"]  # Enable HITL interrupts
+                # interrupt_before=["tools"]  # Enable HITL interrupts
             )
             
             logger.info("LangGraph agent created successfully")
@@ -200,9 +200,8 @@ Begin by navigating to the website and analyzing its structure."""
     async def _run_agent(self, messages, config) -> Dict[str, Any]:
         """Run the agent with proper async handling"""
         try:
-            # Execute the agent
-            response = await asyncio.to_thread(
-                self.agent.invoke,
+            # Execute the agent directly (LangGraph handles async internally)
+            response = await self.agent.ainvoke(
                 {"messages": messages},
                 config
             )
