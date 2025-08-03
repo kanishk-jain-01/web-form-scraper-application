@@ -63,12 +63,20 @@ class BrowserbaseService:
     async def close_session(self, session_id: str) -> bool:
         """Close a browser session"""
         if not self.client:
+            logger.error("Browserbase client not initialized")
+            return False
+        
+        if not session_id:
+            logger.error("No session ID provided for closing")
             return False
         
         try:
+            # Use the correct BrowserBase API method
             await asyncio.to_thread(
-                self.client.sessions.delete,
-                session_id
+                self.client.sessions.update,
+                id=session_id,
+                status="REQUEST_RELEASE",
+                project_id=self.project_id
             )
             logger.info(f"Closed Browserbase session: {session_id}")
             return True

@@ -57,10 +57,13 @@ class ScrapingOrchestrator:
         """Initialize browser session and services"""
         try:
             # Create Browserbase session
+            logger.info("Creating new Browserbase session...")
             self.session_id = await browserbase_service.create_session()
             if not self.session_id:
                 logger.error("Failed to create browser session")
                 return False
+            
+            logger.info(f"Browser session created successfully: {self.session_id}")
             
             # Initialize browser services
             self.stagehand = StagehandService(self.session_id)
@@ -76,6 +79,8 @@ class ScrapingOrchestrator:
             
         except Exception as e:
             logger.error(f"Failed to initialize browser session: {e}")
+            # Make sure session_id is None on failure
+            self.session_id = None
             return False
 
     def _create_agent(self, human_input_callback: Optional[Callable] = None):
@@ -257,7 +262,17 @@ Begin by navigating to the website and analyzing its structure."""
         """Cleanup browser session and resources"""
         try:
             if self.session_id:
-                await browserbase_service.close_session(self.session_id)
-                logger.info(f"Browser session {self.session_id} closed")
+                logger.info(f"Attempting to close browser session: {self.session_id}")
+                success = await browserbase_service.close_session(self.session_id)
+                if success:
+                    logger.info(f"Browser session {self.session_id} closed successfully")
+                else:
+                    logger.warning(f"Failed to close browser session {self.session_id}")
+                # Reset session ID after cleanup
+                self.session_id = None
+            else:
+                logger.warning("No session ID available for cleanup")
         except Exception as e:
             logger.error(f"Error during cleanup: {e}")
+            # Reset session ID even on error
+            self.session_id = None
