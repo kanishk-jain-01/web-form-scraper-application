@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from .scraping import router as scraping_router
+from .endpoints import router as endpoints_router
 
 router = APIRouter()
-router.include_router(scraping_router, prefix="/scraping", tags=["scraping"])
+router.include_router(endpoints_router, prefix="/scraping", tags=["scraping"])

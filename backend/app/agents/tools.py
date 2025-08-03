@@ -1,24 +1,36 @@
 import asyncio
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Callable
 from langchain.tools import tool
-from ..services.browser_automation import BrowserAutomationService
-from ..websocket_manager import manager
+from ..browser.stagehand import StagehandService
+from ..browser.browseruse import BrowserUseService
+from ..api.websockets import websocket_manager
 
 logger = logging.getLogger(__name__)
 
 
 class WebScrapingTools:
-    def __init__(self, browser_service: BrowserAutomationService, client_id: str):
-        self.browser = browser_service
+    def __init__(
+        self, 
+        stagehand: StagehandService, 
+        browseruse: BrowserUseService,
+        client_id: str,
+        job_id: str,
+        human_input_callback: Optional[Callable] = None
+    ):
+        self.stagehand = stagehand
+        self.browseruse = browseruse
         self.client_id = client_id
+        self.job_id = job_id
+        self.human_input_callback = human_input_callback
 
     async def send_progress_update(self, message: str, data: Optional[Dict] = None):
         """Send progress update to frontend via WebSocket"""
         try:
-            await manager.send_json_message({
+            await websocket_manager.send_json_message({
                 "type": "agent_progress",
                 "message": message,
+                "job_id": self.job_id,
                 "data": data or {}
             }, self.client_id)
         except Exception as e:
@@ -37,7 +49,7 @@ class WebScrapingTools:
         try:
             await self.send_progress_update(f"Navigating to {url}")
             
-            success = await self.browser.navigate_to_url(url)
+            success = await self.stagehand.navigate_to_url(url)
             if success:
                 message = f"Successfully navigated to {url}"
                 await self.send_progress_update(message)
@@ -66,10 +78,10 @@ class WebScrapingTools:
             await self.send_progress_update("Analyzing page content...")
             
             # Use Stagehand to observe the page
-            observation = await self.browser.observe_page(instruction)
+            observation = await self.stagehand.observe_page(instruction)
             
             # Extract form fields
-            form_data = await self.browser.extract_form_fields()
+            form_data = await self.stagehand.extract_data()
             
             result = {
                 "observation": observation,
@@ -101,7 +113,7 @@ class WebScrapingTools:
             results = {}
             for selector, value in field_data.items():
                 try:
-                    success = await self.browser.fill_form_field(selector, value)
+                    success = await self.stagehand.perform_action(f"Fill the field with selector '{selector}' with value '{value}'")
                     results[selector] = {
                         "success": success,
                         "value": value,
@@ -147,7 +159,7 @@ class WebScrapingTools:
             action_desc = description or f"element {selector}"
             await self.send_progress_update(f"Clicking {action_desc}")
             
-            success = await self.browser.click_element(selector)
+            success = await self.stagehand.perform_action(f"Click the element with selector '{selector}'")
             if success:
                 message = f"Successfully clicked {action_desc}"
                 await self.send_progress_update(message)
@@ -180,13 +192,14 @@ class WebScrapingTools:
                 "input_type": input_type
             })
             
-            # In a real implementation, this would:
-            # 1. Send interrupt signal to LangGraph
-            # 2. Wait for human response via WebSocket
-            # 3. Return the response
-            
-            # For now, return a placeholder
-            return "HUMAN_INPUT_PENDING"
+            # Request human input via callback if available
+            if self.human_input_callback:
+                response = await self.human_input_callback()
+                await self.send_progress_update("Human input received, continuing...")
+                return response
+            else:
+                # Fallback placeholder
+                return "HUMAN_INPUT_PENDING"
             
         except Exception as e:
             error_msg = f"Error requesting human input: {str(e)}"
@@ -206,7 +219,7 @@ class WebScrapingTools:
         try:
             await self.send_progress_update(f"Running complex task: {task_description}")
             
-            result = await self.browser.run_browser_use_task(task_description)
+            result = await self.browseruse.run_task(task_description)
             
             await self.send_progress_update("Complex task completed", result)
             return result

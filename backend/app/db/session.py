@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from .config import settings
+from ..config import settings
 import logging
 
 # Base class for models
@@ -58,7 +58,7 @@ async def init_db():
         
     try:
         # Import all models here to ensure they are registered
-        from .models import website, form_field, scrape_job
+        from .models import Website, FormField, ScrapeJob
         
         async with engine.begin() as conn:
             # Create all tables
