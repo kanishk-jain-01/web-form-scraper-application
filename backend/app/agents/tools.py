@@ -3,7 +3,7 @@ import logging
 from typing import Dict, Any, Optional, Callable
 from langchain.tools import tool
 from ..browser.stagehand import StagehandService
-from ..browser.browseruse import BrowserUseService
+
 from ..api.websockets import websocket_manager
 
 logger = logging.getLogger(__name__)
@@ -11,15 +11,13 @@ logger = logging.getLogger(__name__)
 
 class WebScrapingTools:
     def __init__(
-        self, 
-        stagehand: StagehandService, 
-        browseruse: BrowserUseService,
-        client_id: str,
-        job_id: str,
-        human_input_callback: Optional[Callable] = None
+    self,
+    stagehand: StagehandService,
+    client_id: str,
+    job_id: str,
+    human_input_callback: Optional[Callable] = None
     ):
         self.stagehand = stagehand
-        self.browseruse = browseruse
         self.client_id = client_id
         self.job_id = job_id
         self.human_input_callback = human_input_callback
@@ -207,27 +205,7 @@ class WebScrapingTools:
             return error_msg
 
     @tool
-    async def run_complex_task(self, task_description: str) -> Dict[str, Any]:
-        """Run a complex multi-step task using BrowserUse agent.
-        
-        Args:
-            task_description: Description of the task to perform
-            
-        Returns:
-            Task execution results
-        """
-        try:
-            await self.send_progress_update(f"Running complex task: {task_description}")
-            
-            result = await self.browseruse.run_task(task_description)
-            
-            await self.send_progress_update("Complex task completed", result)
-            return result
-            
-        except Exception as e:
-            error_msg = f"Error running complex task: {str(e)}"
-            await self.send_progress_update(error_msg)
-            return {"error": error_msg}
+
 
     def get_all_tools(self):
         """Get all available tools for the agent"""

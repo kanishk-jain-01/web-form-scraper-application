@@ -10,7 +10,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from .tools import WebScrapingTools
 from ..browser.browserbase import browserbase_service
 from ..browser.stagehand import StagehandService
-from ..browser.browseruse import BrowserUseService
+
 from ..config import settings
 from ..api.websockets import websocket_manager
 
@@ -25,7 +25,6 @@ class ScrapingOrchestrator:
         
         # Browser services
         self.stagehand = None
-        self.browseruse = None
         
         # Agent components
         self.tools = None
@@ -65,14 +64,12 @@ class ScrapingOrchestrator:
             
             # Initialize browser services
             self.stagehand = StagehandService(self.session_id)
-            self.browseruse = BrowserUseService(self.session_id)
             
             # Send session info
             await websocket_manager.send_json_message({
                 "type": "browser_ready",
                 "session_id": self.session_id,
-                "stagehand_ready": self.stagehand.is_ready(),
-                "browseruse_ready": self.browseruse.is_ready()
+                "stagehand_ready": self.stagehand.is_ready()
             }, self.client_id)
             
             return True
@@ -91,7 +88,6 @@ class ScrapingOrchestrator:
             # Create tools with browser services
             self.tools = WebScrapingTools(
                 stagehand=self.stagehand,
-                browseruse=self.browseruse,
                 client_id=self.client_id,
                 job_id=self.job_id,
                 human_input_callback=human_input_callback

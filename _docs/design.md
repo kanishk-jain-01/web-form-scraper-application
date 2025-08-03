@@ -161,7 +161,7 @@ graph TD
     F --> G[LangGraph Orchestrator]
     G --> H["create_react_agent (ReAct Loop)"]
     H --> I[Custom Tools]
-    I --> J["Navigate (Stagehand/BrowserUse)"]
+    I --> J["Navigate (Stagehand)"]
     I --> K["Fill Form Fields (Stagehand act())"]
     I --> L["Analyze Page (Stagehand extract()/observe())"]
     I --> M["HITL (Interrupt and WebSocket Prompt)"]
@@ -171,7 +171,6 @@ graph TD
 
     G --> P[Browserbase Session - WebSocket CDP]
     P --> Q[Stagehand SDK]
-    P --> R[BrowserUse Agent]
 
     G --> S[Postgres DB - Form Metadata/Job History]
     G --> T[Redis - Caching/Session State]
@@ -207,8 +206,7 @@ backend/
 │   │   └── state.py       # Custom AgentState schema
 │   ├── browser/           # Browser integrations
 │   │   ├── browserbase.py # Session management
-│   │   ├── stagehand.py   # Wrappers for act/extract/observe
-│   │   └── browseruse.py  # Agent wrappers
+│   │   └── stagehand.py   # Wrappers for act/extract/observe
 │   ├── db/                # Database interactions
 │   │   ├── models.py      # SQLAlchemy models (Users, Websites, etc.)
 │   │   ├── crud.py        # CRUD operations
@@ -230,8 +228,6 @@ backend/
 - **Why this structure?**: Groups by feature (api, agents, browser) for clear separation. Config and tests are top-level for easy access.
 
 ## Request Flow Sketch
-
-Here's a simple ASCII art mockup of a typical request flow, from user initiation to completion.
 
 ```
 User (Frontend) --> [HTTPS/WebSocket] --> FastAPI App

@@ -14,9 +14,8 @@
 - FastAPI: High-performance web framework for building APIs with automatic OpenAPI docs and async support. Handles REST/GraphQL endpoints, authentication, and WebSocket proxying.
 
 ## Browser Automation
-- Browserbase: Headless browser service that spins up cloud-based browser instances. Requires API keys for authentication and provides scalable, secure sessions via WebSocket (CDP protocol). Integrates with Stagehand and BrowserUse for automation.
+- Browserbase: Headless browser service that spins up cloud-based browser instances. Requires API keys for authentication and provides scalable, secure sessions via WebSocket (CDP protocol). Integrates with Stagehand for automation.
 - Stagehand: Python SDK for AI-powered browser actions (e.g., act(), extract(), observe()) using natural language instructions. Built on Playwright for resilience to DOM changes.
-- BrowserUse: Open-source Python library for high-level AI agent browser interactions. Wraps Playwright and LLMs for tasks like navigation and data extraction; complements Stagehand for agentic workflows.
 
 ## AI Orchestration
 - LangGraph: Open-source framework for building stateful AI agents. Uses `create_react_agent` for ReAct-style loops, tool integration, state management, and interruptions (e.g., HITL).
