@@ -56,46 +56,45 @@ graph TD
 
 ```mermaid
 graph TD
-  U[User] -->|"Enter URL / Start"| FE[Frontend SPA React]
-  FE -->|"WebSocket / REST"| AG[LangGraph Agent create_react_agent]
-  subgraph "Scrape Loop ReAct Cycle"
-    AG -->|"Init Browser Session WebSocket CDP"| BB[Browserbase Session]
-    BB --> SH[Stagehand Framework Python SDK]
-    SH --> TOOLS["act() / extract() / observe() / goto() / navigate()"]
-    TOOLS --> AX[Chrome Accessibility Tree / DOM Snapshot]
-    AX --> TOOLS
-    TOOLS -->|"Form JSON Updates"| AG
-    AG -->|"DB Lookup/Store e.g. login check"| PG[(Postgres DB)]
-    AG -->|"Real-Time Progress e.g. actions partial JSON"| FE
-  end
-  subgraph "HITL Flow"
-    AG -->|"Interrupt via LangGraph interrupt_before"| HITL["HITL Node"]
-    HITL -->|"Prompt User e.g. Enter CAPTCHA or Verify Email"| FE
-    FE -->|"Display Prompt"| U
-    U -->|"Human Input e.g. text confirmation"| FE
-    FE -->|"Feedback / Resume"| AG
-  end
-  subgraph "Agent Decision Making"
-    AG --> AGENT["agent() - Reason/Act/Observe Loop"]
-    AGENT -->|"Tool Calls Custom: Navigate Fill Analyze HITL"| LLM[LLM OpenAI GPT-4o / Anthropic Claude]
-    LLM -->|"Structured Output e.g. tool invocation"| AGENT
-    AGENT -->|"State Update via Checkpointer"| RS[(Redis / MemorySaver)]
-  end
-  AG -->|"Completed / Results Full Form JSON"| FE
-  FE -->|"Display Results / Store Locally"| U
+    U[User] -->|"Enter URL / Start"| FE[Frontend SPA React]
+    FE -->|"WebSocket / REST"| FA[FastAPI Backend - Endpoints/Handlers]
+    FA -->|"Queue Job URL/Task"| JQ[Job Queue RabbitMQ]
+    JQ --> WP[Worker Process - Pulls & Processes Jobs]
+    WP --> SM[Session Manager - Init Browser Session WebSocket CDP]
+    SM --> BB[Browserbase Session]
+    WP --> AG[LangGraph Orchestrator - Configures/Runs create_react_agent]
+    subgraph "Scrape Loop ReAct Cycle"
+        AG --> AGENT["agent - Reason/Act/Observe Loop"]
+        AGENT -->|"Tool Calls Custom: Navigate, Fill, Analyze, HITL"| TOOLS[Custom Tools]
+        TOOLS --> SH[Stagehand Framework Python SDK]
+        SH --> BB
+        SH -->|"act / extract / observe / goto / navigate"| AX[Chrome Accessibility Tree / DOM Snapshot]
+        AX --> SH
+        TOOLS -->|"Form JSON Updates"| AGENT
+        AG -->|"Real-Time Progress actions, partial JSON via WebSocket"| FA
+        FA --> FE
+    end
+    subgraph "HITL Flow"
+        TOOLS -->|"HITL Tool - Interrupt via LangGraph interrupt_before"| HITL["HITL Node"]
+        HITL -->|"Prompt User Enter CAPTCHA or Verify Email via WebSocket"| FA
+        FA -->|"Display Prompt"| FE
+        FE -->|"Display Prompt"| U
+        U -->|"Human Input text, confirmation"| FE
+        FE -->|"Feedback / Resume via WebSocket"| FA
+        FA -->|"Resume"| HITL
+        HITL --> AGENT
+    end
+    subgraph "Agent Decision Making"
+        AGENT --> LLM[LLM OpenAI GPT-4o / Anthropic Claude]
+        LLM -->|"Structured Output tool invocation"| AGENT
+        AGENT -->|"State Update via Checkpointer"| RS[(Redis / MemorySaver)]
+    end
+    AG -->|"DB Lookup login check during Loop if Needed via Tool/Hook"| PG[(Postgres DB)]
+    AG -->|"Completed / Results Full Form JSON"| PH[Post-Agent Hook - Save to DB & Notify]
+    PH -->|"Save Form JSON/Job History"| PG
+    PH -->|"Results via WebSocket/REST"| FA
+    FA -->|"Completed / Results"| FE
+    FE -->|"Display Results / Store Locally"| U
+    WP -->|"Cleanup Session on Job End"| SM
+    SM -->|"Close Session"| BB
 ```
-
-### Description
-1. **Initiation**: User enters URL in Frontend, which sends a request to start the agent via WebSocket/REST. LangGraph spawns a `create_react_agent` instance with custom tools, LLM, and state schema (e.g., extending `AgentState` with `form_json: dict`, `url: str`, `step_count: int`).
-2. **Scrape Loop**:
-   - **Browser Integration**: Agent establishes a WebSocket CDP connection to Browserbase for a headless session. Uses Stagehand for actions (e.g., `act("Click login button")`, `extract({"schema": form_schema})`).
-   - **Tools Definition** (in LangGraph):
-     - `Navigate(url: str)`: Wrapper around Stagehand `goto()` or navigation actions.
-     - `Fill Form Fields(fields: dict)`: Uses Stagehand `act()` to input data, handling metadata like required lengths/options from DB.
-     - `Analyze Page(instructions: str)`: Uses Stagehand `observe()`/`extract()`
-     - `HITL(prompt: str)`: Custom tool that interrupts the loop, sends prompt to Frontend via WebSocket, awaits user input, and resumes.
-     - Tools bound to LLM with schemas for structured calls; support parallel execution in v2.
-   - **State Management**: LangGraph checkpointer (e.g., `MemorySaver` backed by Redis) persists messages, form JSON, and progress. DB lookup at start (e.g., check if site requires login via cached Postgres query).
-   - **Accessibility/robustness**: Leverages Chrome Accessibility Tree for resilient selectors (anti-fragile to DOM changes).
-3. **HITL Flow**: Triggered on errors (e.g., CAPTCHA, email verification) or ambiguities. Uses LangGraph `interrupt_after=["tools"]` to pause after tool calls, routing to HITL node. Frontend displays interactive prompts; user input fed back to agent state.
-4. **Decision Making**: ReAct loop in `create_react_agent` (v2 for parallel tools). LLM reasons over state (e.g., "If login required, call Navigate to login page, then Fill Form Fields"). Stops on success (e.g., form scraped) or max steps. Updates visible to user via WebSocket.
