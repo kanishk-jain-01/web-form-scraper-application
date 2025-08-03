@@ -18,7 +18,7 @@ function App() {
     clearMessages
   } = useScrapingStore()
 
-  const { isConnected, sendMessage } = useWebSocket({
+  const { isConnected, connect, disconnect, sendMessage } = useWebSocket({
     clientId,
     onMessage: (data) => {
       console.log('WebSocket message received:', data)
@@ -34,6 +34,7 @@ function App() {
         case 'job_stopped':
         case 'job_error':
           setActive(false)
+          disconnect() // Close WebSocket when job ends
           break
         
         case 'agent_progress':
@@ -75,6 +76,9 @@ function App() {
     try {
       clearMessages()
       
+      // Connect WebSocket before starting the job
+      connect()
+      
       const response = await fetch('/api/v1/scraping/start', {
         method: 'POST',
         headers: {
@@ -92,6 +96,7 @@ function App() {
           type: 'error',
           message: `Failed to start scraping: ${error.detail}`
         })
+        disconnect() // Close connection on error
         return
       }
 
@@ -110,6 +115,7 @@ function App() {
         type: 'error',
         message: `Error starting scraping: ${error}`
       })
+      disconnect() // Close connection on error
     }
   }
 
@@ -139,6 +145,7 @@ function App() {
       const result = await response.json()
       setActive(false)
       setJobId(null)
+      disconnect() // Close WebSocket when manually stopping
       
       addMessage({
         type: 'job_stopped',
@@ -151,6 +158,7 @@ function App() {
         type: 'error',
         message: `Error stopping scraping: ${error}`
       })
+      disconnect() // Close connection on error
     }
   }
 

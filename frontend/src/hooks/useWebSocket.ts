@@ -27,7 +27,11 @@ export const useWebSocket = ({ clientId, onMessage, onConnect, onDisconnect }: U
     onDisconnectRef.current = onDisconnect
   }, [onDisconnect])
 
-  useEffect(() => {
+  const connect = useCallback(() => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      return // Already connected
+    }
+
     // Create WebSocket connection
     const ws = new WebSocket(`ws://localhost:8000/ws/${clientId}`)
     
@@ -62,22 +66,32 @@ export const useWebSocket = ({ clientId, onMessage, onConnect, onDisconnect }: U
     }
 
     socketRef.current = ws
-
-    return () => {
-      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
-        ws.close()
-      }
-    }
   }, [clientId])
 
-  const sendMessage = (message: string) => {
+  const disconnect = useCallback(() => {
+    if (socketRef.current && (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING)) {
+      socketRef.current.close()
+      socketRef.current = null
+    }
+  }, [])
+
+  const sendMessage = useCallback((message: string) => {
     if (socketRef.current && isConnected) {
       socketRef.current.send(message)
     }
-  }
+  }, [isConnected])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      disconnect()
+    }
+  }, [disconnect])
 
   return {
     isConnected,
+    connect,
+    disconnect,
     sendMessage
   }
 }
