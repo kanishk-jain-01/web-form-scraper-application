@@ -1,14 +1,31 @@
 import asyncio
 import logging
 import os
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from dotenv import load_dotenv
 from stagehand import StagehandConfig, Stagehand
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
 # Load env vars once at module level if needed
 load_dotenv()
+
+# Pydantic models for extraction schema
+class FormField(BaseModel):
+    name: str
+    type: str
+    selector: str
+    required: bool
+    placeholder: str
+    options: List[str] = []
+
+class FormData(BaseModel):
+    formId: str  # Changed from form_id to match Stagehand output
+    fields: List[FormField]
+
+class ExtractedData(BaseModel):
+    forms: List[FormData]
 
 class StagehandService:
     def __init__(self):
@@ -59,49 +76,33 @@ class StagehandService:
             logger.error(f"Failed to navigate to {url}: {e}")
             return False
 
-    async def extract_data(self, instruction: str, schema: Optional[Dict] = None) -> Dict[str, Any]:
+    async def extract_data(self, instruction: str, schema: Optional[type[BaseModel]] = None) -> Dict[str, Any]:
         if not self.stagehand:
             logger.error("Stagehand not initialized")
             return {}
         try:
-            # Default schema for form extraction (preserved from original)
-            default_schema = {
-                "type": "object",
-                "properties": {
-                    "forms": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "form_id": {"type": "string"},
-                                "fields": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "object",
-                                        "properties": {
-                                            "name": {"type": "string"},
-                                            "type": {"type": "string"},
-                                            "selector": {"type": "string"},
-                                            "required": {"type": "boolean"},
-                                            "placeholder": {"type": "string"},
-                                            "options": {
-                                                "type": "array",
-                                                "items": {"type": "string"}
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            # Use Pydantic model as schema (Stagehand expects this)
+            schema_to_use = schema or ExtractedData
+            
             result = await self.stagehand.page.extract(
                 instruction=instruction,
-                schema=schema or default_schema
+                schema=schema_to_use
             )
+            
             logger.info("Data extraction completed")
-            return result
+            
+            # Check if validation failed and raw data is in .data field
+            if hasattr(result, 'data'):
+                return result.data
+            
+            # Convert Pydantic model to dict if needed
+            if hasattr(result, 'model_dump'):
+                return result.model_dump()
+            elif hasattr(result, 'dict'):
+                return result.dict()
+            else:
+                return result
+                
         except Exception as e:
             logger.error(f"Failed to extract data: {e}")
             return {}
