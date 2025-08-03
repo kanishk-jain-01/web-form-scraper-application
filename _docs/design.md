@@ -153,30 +153,35 @@ The following Mermaid diagram illustrates the high-level backend architecture fl
 graph TD
     A[FastAPI App] --> B[Auth Middleware]
     B --> C[REST/GraphQL Endpoints]
-    C --> D[WebSocket Handler - Real-time updates/HITL]
-    C --> E[Job Initiator - Publishes to Queue]
-
+    C --> D[WebSocket Handler - Real-time updates/HITL Prompts/Resumes]
+    C --> E[Job Initiator - Publishes to Queue with URL/Task]
     E --> F[Job Queue - RabbitMQ]
-
-    F --> G[LangGraph Orchestrator]
-    G --> H["create_react_agent (ReAct Loop)"]
-    H --> I[Custom Tools]
-    I --> J["Navigate (Stagehand)"]
-    I --> K["Fill Form Fields (Stagehand act())"]
-    I --> L["Analyze Page (Stagehand extract()/observe())"]
-    I --> M["HITL (Interrupt and WebSocket Prompt)"]
-
-    G --> N[LLM Integration - OpenAI/Anthropic]
-    G --> O[State Checkpointer - Redis/MemorySaver]
-
-    G --> P[Browserbase Session - WebSocket CDP]
-    P --> Q[Stagehand SDK]
-
-    G --> S[Postgres DB - Form Metadata/Job History]
-    G --> T[Redis - Caching/Session State]
-
-    G --> U[Observability Exporter - OpenTelemetry]
-    U --> V[Prometheus/Grafana]
+    F --> G[Worker Process - Pulls Jobs]
+    G --> SM[Session Manager - Init Browserbase Session WebSocket CDP]
+    SM --> P[Browserbase Session]
+    P --> Q[Stagehand SDK - Shared Across Tools]
+    G --> H[LangGraph Orchestrator - Configures/Runs Graph]
+    H --> I[create_react_agent ReAct Loop]
+    I --> J[LLM Integration - OpenAI/Anthropic]
+    I --> K[Custom Tools]
+    K --> L[Navigate Stagehand goto/navigate]
+    K --> M[Fill Form Fields Stagehand act]
+    K --> N[Analyze Page Stagehand extract/observe - Builds JSON]
+    K --> O[HITL Interrupt → WebSocket Prompt → Resume]
+    L --> Q
+    M --> Q
+    N --> Q
+    I --> R[State Checkpointer - Redis/MemorySaver for Agent State]
+    I --> S[Interrupt Hooks - For HITL via WebSocket]
+    S --> D
+    D --> S
+    H --> T[Post-Agent Hook - On Completion: Save Form JSON/Job History]
+    T --> U[Postgres DB - Form Metadata/Job History]
+    H --> V[Observability Exporter - OpenTelemetry from Graph Nodes/Tools]
+    V --> W[Prometheus/Grafana]
+    SM --> X[Cleanup Hook - Close Session on Job End]
+    H --> Y[Real-Time Progress - Stream Updates via WebSocket]
+    Y --> D
 ```
 
 ### Description of Key Components
