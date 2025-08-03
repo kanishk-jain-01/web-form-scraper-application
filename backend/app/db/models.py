@@ -13,7 +13,7 @@ class Website(Base):
     base_url = Column(String, nullable=False)
     login_required = Column(Boolean, default=False)
     login_url = Column(String, nullable=True)
-    metadata = Column(JSONB, default={})
+    metadata_json = Column("metadata", JSONB, default={})
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -34,7 +34,7 @@ class FormField(Base):
     max_length = Column(Integer, nullable=True)
     options = Column(JSONB, default=[])  # For select fields
     validation_rules = Column(JSONB, default={})
-    metadata = Column(JSONB, default={})
+    metadata_json = Column("metadata", JSONB, default={})
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

@@ -23,7 +23,7 @@ class WebsiteCRUD:
             base_url=base_url,
             login_required=login_required,
             login_url=login_url,
-            metadata=metadata or {}
+            metadata_json=metadata or {}
         )
         db.add(website)
         await db.commit()
@@ -70,7 +70,7 @@ class FormFieldCRUD:
             max_length=max_length,
             options=options or [],
             validation_rules=validation_rules or {},
-            metadata=metadata or {}
+            metadata_json=metadata or {}
         )
         db.add(form_field)
         await db.commit()
