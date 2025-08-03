@@ -36,16 +36,11 @@ class ScrapingOrchestrator:
 
     def _initialize_llm(self):
         """Initialize the LLM based on available API keys"""
-        if settings.openai_api_key:
+        if settings.model_api_key:
+            # Default to OpenAI GPT-4o, but could be configured for other models
             return ChatOpenAI(
-                api_key=settings.openai_api_key,
+                api_key=settings.model_api_key,
                 model="gpt-4o",
-                temperature=0.1
-            )
-        elif settings.anthropic_api_key:
-            return ChatAnthropic(
-                api_key=settings.anthropic_api_key,
-                model="claude-3-5-sonnet-20241022",
                 temperature=0.1
             )
         else:
@@ -57,7 +52,7 @@ class ScrapingOrchestrator:
         try:
             # Initialize browser services with Stagehand
             logger.info("Initializing Stagehand browser session...")
-            self.stagehand = StagehandService()
+            self.stagehand = await StagehandService.create()
             
             if not self.stagehand.is_ready():
                 logger.error("Failed to initialize Stagehand service")

@@ -14,9 +14,16 @@ class StagehandService:
     def __init__(self):
         self.stagehand = None
         self.session_id = None
-        self._initialize()
+        self._initialized = False
 
-    def _initialize(self):
+    @classmethod
+    async def create(cls):
+        """Create and initialize a StagehandService instance"""
+        instance = cls()
+        await instance._initialize()
+        return instance
+
+    async def _initialize(self):
         """Initialize Stagehand instance with BrowserBase config"""
         try:
             config = StagehandConfig(
@@ -24,21 +31,21 @@ class StagehandService:
                 api_key=os.getenv("BROWSERBASE_API_KEY"),
                 project_id=os.getenv("BROWSERBASE_PROJECT_ID"),
                 model_name="gpt-4o",  # Change to your preferred model, e.g., "google/gemini-2.5-flash-preview-05-20"
-                model_api_key=os.getenv("MODEL_API_KEY")  # e.g., OPENAI_API_KEY
+                model_api_key=os.getenv("MODEL_API_KEY")  
             )
             self.stagehand = Stagehand(config)
-            # Run init asynchronously; in a real app, await this in an async context
-            asyncio.run(self._async_init())  # If your app's entrypoint is async, make __init__ async instead
+            await self.stagehand.init()
+            self.session_id = self.stagehand.session_id
+            self._initialized = True
+            
+            if self.stagehand.env == "BROWSERBASE":
+                logger.info(f"View live browser: https://www.browserbase.com/sessions/{self.session_id}")
+            
             logger.info(f"Stagehand initialized with session {self.session_id}")
         except Exception as e:
             logger.error(f"Failed to initialize Stagehand: {e}")
             self.stagehand = None
-
-    async def _async_init(self):
-        await self.stagehand.init()
-        self.session_id = self.stagehand.session_id
-        if self.stagehand.env == "BROWSERBASE":
-            logger.info(f"View live browser: https://www.browserbase.com/sessions/{self.session_id}")
+            self._initialized = False
 
     async def navigate_to_url(self, url: str) -> bool:
         if not self.stagehand:
@@ -134,4 +141,4 @@ class StagehandService:
 
     def is_ready(self) -> bool:
         """Check if Stagehand is ready"""
-        return self.stagehand is not None and self.session_id is not None
+        return self._initialized and self.stagehand is not None and self.session_id is not None

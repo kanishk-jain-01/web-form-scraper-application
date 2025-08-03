@@ -9,9 +9,8 @@ class Settings(BaseSettings):
     # Redis
     redis_url: str = "redis://localhost:6379"
     
-    # AI API Keys
-    openai_api_key: Optional[str] = None
-    anthropic_api_key: Optional[str] = None
+    # AI API Key
+    model_api_key: Optional[str] = None
     
     # Browser automation
     browserbase_api_key: Optional[str] = None
