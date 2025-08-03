@@ -84,7 +84,10 @@ class StagehandService:
                                             "selector": {"type": "string"},
                                             "required": {"type": "boolean"},
                                             "placeholder": {"type": "string"},
-                                            "options": {"type": "array"}
+                                            "options": {
+                                                "type": "array",
+                                                "items": {"type": "string"}
+                                            }
                                         }
                                     }
                                 }

@@ -86,7 +86,7 @@ class AnalyzePageTool(BaseTool):
             form_data = await self.stagehand.extract_data("Extract all form fields and interactive elements from the current page")
             
             result = {
-                "observation": observation,
+                "observation": str(observation),  # Convert to string for JSON serialization
                 "forms": form_data,
                 "page_analyzed": True
             }
